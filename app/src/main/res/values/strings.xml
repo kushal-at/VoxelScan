@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">VoxelScan 3D</string>
+    <string name="nav_scanner">Scanner</string>
+    <string name="nav_inspector">3D Mesh</string>
+    <string name="nav_batch">Batch Queue</string>
+    <string name="nav_ai_textures">AI Texture</string>
+    <string name="nav_cgpu">CGPU Engine</string>
+    <string name="scanner_title">Realtime Depth &amp; Lightray Capture</string>
+    <string name="scanner_subtitle">Align guidepoints for high-accuracy quad retopology</string>
+    <string name="btn_start_recording">Start Video Capture</string>
+    <string name="btn_stop_and_process">Finish &amp; Deep Process</string>
+    <string name="btn_lock_guidepoint">Lock Guidepoint</string>
+    <string name="btn_export_package">Export Game Asset Package</string>
+    <string name="btn_run_batch">Run High-Volume Batch Pipeline</string>
+    <string name="btn_generate_texture">Synthesize Texture (Nano Banana 2.1)</string>
+    <string name="btn_edit_texture">Edit Texture with Prompt</string>
+</resources>

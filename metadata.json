@@ -1,0 +1,6 @@
+{
+  "name": "VoxelScan 3D",
+  "description": "Real-time 3D photogrammetry scanner, GPU-accelerated retopology and batch asset processor with FBX/OBJ/Texture export and AI texture synthesis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
