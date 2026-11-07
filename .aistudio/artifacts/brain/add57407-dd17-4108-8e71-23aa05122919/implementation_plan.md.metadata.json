@@ -1,6 +1,0 @@
-{
-  "summary":  "Architectural and UX implementation plan for re-engineering VoxelScan 3D with real CameraX multi-angle RGB keyframe capture, hardware IMU (TYPE_ROTATION_VECTOR / Gyroscope / Accelerometer) orbital pose tracking, visual-hull & Sobel depth-map 3D mesh reconstruction, cylindrical UV projection of real captured camera pixels onto _albedo.png and high-frequency luminance _noise.png textures, and true UV-sampled 3D viewport rendering.",
-  "updatedAt":  "2026-11-07T16:04:01.108601516Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}
