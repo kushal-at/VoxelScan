@@ -3,8 +3,10 @@ package com.example.ui.screens
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,13 +17,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.Brush
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Grain
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -44,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.components.GlossyStatusPill
 import com.example.ui.components.GlossyTranslucentCard
 import com.example.ui.components.TactileFilterChip
-import com.example.ui.components.TactilePrimaryButton
+import com.example.ui.components.TactileIconOrbButton
 import com.example.ui.theme.AlertRedSolid
 import com.example.ui.theme.AlertRedSurface
 import com.example.ui.theme.BrightYellowSurface
@@ -52,7 +59,9 @@ import com.example.ui.theme.CobaltBluePrimary
 import com.example.ui.theme.CrispBlueBorder
 import com.example.ui.theme.DeepAmberInk
 import com.example.ui.theme.DeepNavyInk
+import com.example.ui.theme.PorcelainWhite
 import com.example.ui.theme.PureWhite
+import com.example.ui.theme.SkyBlueSoft
 import com.example.ui.theme.SlateBlueMuted
 import com.example.ui.theme.SolarYellowAccent
 import com.example.ui.theme.WarmYellowBorder
@@ -83,12 +92,13 @@ fun AiTextureStudioScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(PorcelainWhite)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // 1. Header Card
-        GlossyTranslucentCard {
+        // 1. Editorial Google Gemini / Microsoft Copilot Studio Header
+        Column(modifier = Modifier.padding(horizontal = 4.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -96,83 +106,262 @@ fun AiTextureStudioScreen(
             ) {
                 GlossyStatusPill(
                     text = "GEMINI-NANO-BANANA-2.1",
-                    icon = Icons.Default.AutoFixHigh
+                    icon = Icons.Rounded.AutoFixHigh
                 )
                 GlossyStatusPill(
-                    text = if (targetNoiseChannel) "TARGET: NOISE MAP" else "TARGET: ALBEDO MAP",
-                    isYellowHighlight = true
+                    text = if (targetNoiseChannel) "CHANNEL: NOISE MAP" else "CHANNEL: ALBEDO MAP",
+                    isYellowHighlight = true,
+                    icon = if (targetNoiseChannel) Icons.Rounded.Grain else Icons.Rounded.Palette
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "AI PBR Texture & Noise Map Studio",
+                text = "AI PBR Texture & Noise Studio",
                 style = MaterialTheme.typography.headlineMedium,
-                color = DeepNavyInk
+                color = DeepNavyInk,
+                fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Create brand-new seamless textures or edit your 3D model's captured Image Texture (_albedo.png) and Noise Texture (_noise.png) using text prompts.",
+                text = "Synthesize seamless PBR maps or refine your scanned _albedo.png and _noise.png textures.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = SlateBlueMuted
             )
+        }
 
-            Spacer(modifier = Modifier.height(14.dp))
+        // 2. Live Side-by-Side Texture Canvas Showcase
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(165.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(PureWhite)
+            ) {
+                Image(
+                    bitmap = currentAlbedoBitmap.asImageBitmap(),
+                    contentDescription = "Current Albedo Texture",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Surface(
+                    shape = CircleShape,
+                    color = if (!targetNoiseChannel) SolarYellowAccent else PureWhite.copy(alpha = 0.9f),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Palette,
+                            contentDescription = null,
+                            tint = DeepNavyInk,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Albedo (_albedo.png)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = DeepNavyInk,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
 
-            // Channel Selector (Image Texture vs Noise Texture)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(165.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(PureWhite)
+            ) {
+                Image(
+                    bitmap = currentNoiseBitmap.asImageBitmap(),
+                    contentDescription = "Current Noise Texture",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Surface(
+                    shape = CircleShape,
+                    color = if (targetNoiseChannel) SolarYellowAccent else PureWhite.copy(alpha = 0.9f),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Grain,
+                            contentDescription = null,
+                            tint = DeepNavyInk,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Noise (_noise.png)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = DeepNavyInk,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. AI Generation / Editing Status Banner
+        when (val state = aiTextureState) {
+            is AiTextureUiState.Loading -> {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = BrightYellowSurface,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = CobaltBluePrimary,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = state.modeLabel,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = DeepNavyInk,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Baking directly onto active 3D mesh UV coordinates...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DeepAmberInk
+                            )
+                        }
+                    }
+                }
+            }
+
+            is AiTextureUiState.Error -> {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = AlertRedSurface,
+                    border = BorderStroke(1.dp, AlertRedSolid),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ErrorOutline,
+                            contentDescription = "AI Error",
+                            tint = AlertRedSolid,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Error: ${state.message}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AlertRedSolid,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.testTag("ai_texture_error_text")
+                        )
+                    }
+                }
+            }
+
+            is AiTextureUiState.Success -> {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = BrightYellowSurface,
+                    border = BorderStroke(1.dp, WarmYellowBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            bitmap = state.bitmap.asImageBitmap(),
+                            contentDescription = "Generated AI Texture",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CheckCircle,
+                                    contentDescription = "Texture Applied",
+                                    tint = CobaltBluePrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Applied to ${state.appliedToSlot}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = DeepNavyInk,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = state.prompt,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = DeepAmberInk,
+                                maxLines = 2
+                            )
+                        }
+                    }
+                }
+            }
+
+            is AiTextureUiState.Idle -> Unit
+        }
+
+        // 4. Icon-First Google Gemini / Microsoft Copilot Prompt Composer Surface
+        GlossyTranslucentCard {
+            // Channel Target Pills with Material Extended Icons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TactileFilterChip(
-                    label = "Image Texture (_albedo.png)",
+                    label = "Target: Albedo Map",
                     selected = !targetNoiseChannel,
+                    leadingIcon = Icons.Rounded.Palette,
                     onClick = { targetNoiseChannel = false },
                     modifier = Modifier.weight(1f),
                     testTagName = "select_albedo_channel_chip"
                 )
                 TactileFilterChip(
-                    label = "Noise Texture (_noise.png)",
+                    label = "Target: Noise Map",
                     selected = targetNoiseChannel,
+                    leadingIcon = Icons.Rounded.Grain,
                     onClick = { targetNoiseChannel = true },
                     modifier = Modifier.weight(1f),
                     testTagName = "select_noise_channel_chip"
                 )
             }
-        }
-
-        // 2. Prompt Input & Preset Chips
-        GlossyTranslucentCard {
-            Text(
-                text = "Texture Generation or Edit Prompt",
-                style = MaterialTheme.typography.titleMedium,
-                color = DeepNavyInk,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            OutlinedTextField(
-                value = promptText,
-                onValueChange = { promptText = it },
-                label = { Text("Describe the texture to create or how to edit the current map") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("ai_texture_prompt_input"),
-                shape = RoundedCornerShape(16.dp),
-                minLines = 3,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = PureWhite,
-                    unfocusedContainerColor = PureWhite,
-                    focusedBorderColor = CobaltBluePrimary,
-                    unfocusedBorderColor = CrispBlueBorder,
-                    focusedTextColor = DeepNavyInk,
-                    unfocusedTextColor = DeepNavyInk
-                )
-            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Quick Suggestion Pills with Sparkle Icons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -183,203 +372,69 @@ fun AiTextureStudioScreen(
                     TactileFilterChip(
                         label = "Preset #${idx + 1}",
                         selected = promptText == presetPrompt,
+                        leadingIcon = Icons.Rounded.AutoAwesome,
                         onClick = { promptText = presetPrompt },
                         testTagName = "ai_preset_prompt_$idx"
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
+            // Composer Field + Icon-First Action Orbs
             val isBusy = aiTextureState is AiTextureUiState.Loading
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                TactilePrimaryButton(
-                    text = "Create Texture",
-                    icon = Icons.Default.AutoFixHigh,
-                    enabled = !isBusy && promptText.isNotBlank(),
-                    onClick = { onGenerateNewTexture(promptText, targetNoiseChannel) },
-                    pulseType = TactilePulse.TAP_LIGHT,
-                    modifier = Modifier.weight(1f),
-                    testTagName = "create_ai_texture_btn"
-                )
-
-                TactilePrimaryButton(
-                    text = "Edit Active Map",
-                    icon = Icons.Default.Brush,
-                    isYellowAccent = true,
-                    enabled = !isBusy && promptText.isNotBlank(),
-                    onClick = { onEditExistingTexture(promptText, targetNoiseChannel) },
-                    pulseType = TactilePulse.TAP_LIGHT,
-                    modifier = Modifier.weight(1f),
-                    testTagName = "edit_ai_texture_btn"
-                )
-            }
-        }
-
-        // 3. AI Generation / Editing Status & Output Preview
-        when (val state = aiTextureState) {
-            is AiTextureUiState.Loading -> {
-                GlossyTranslucentCard(
-                    containerColor = BrightYellowSurface,
-                    borderColor = WarmYellowBorder
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        CircularProgressIndicator(
-                            color = CobaltBluePrimary,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = state.modeLabel,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = DeepNavyInk,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Applying directly to active 3D model UV channels upon completion.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = DeepAmberInk
-                            )
-                        }
-                    }
-                }
-            }
-
-            is AiTextureUiState.Error -> {
-                GlossyTranslucentCard(
-                    containerColor = AlertRedSurface,
-                    borderColor = AlertRedSolid
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = "AI Error",
-                            tint = AlertRedSolid,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Error: ${state.message}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = AlertRedSolid,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.testTag("ai_texture_error_text")
-                        )
-                    }
-                }
-            }
-
-            is AiTextureUiState.Success -> {
-                GlossyTranslucentCard(
-                    containerColor = BrightYellowSurface,
-                    borderColor = WarmYellowBorder
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Texture Applied",
-                            tint = CobaltBluePrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Applied to ${state.appliedToSlot}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = DeepNavyInk,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(2.dp, CobaltBluePrimary),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp)
-                    ) {
-                        Image(
-                            bitmap = state.bitmap.asImageBitmap(),
-                            contentDescription = "Generated AI Texture",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-            }
-
-            is AiTextureUiState.Idle -> Unit
-        }
-
-        // 4. Current Active 3D Asset Textures (Live Comparison)
-        GlossyTranslucentCard {
-            Text(
-                text = "Active 3D Model Texture Maps",
-                style = MaterialTheme.typography.titleMedium,
-                color = DeepNavyInk,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.5.dp, CobaltBluePrimary),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                    ) {
-                        Image(
-                            bitmap = currentAlbedoBitmap.asImageBitmap(),
-                            contentDescription = "Current Albedo Texture",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Image Texture (_albedo.png)",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = DeepNavyInk
+                OutlinedTextField(
+                    value = promptText,
+                    onValueChange = { promptText = it },
+                    placeholder = { Text("Describe the PBR material or edit instruction...") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("ai_texture_prompt_input"),
+                    shape = RoundedCornerShape(22.dp),
+                    minLines = 3,
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = SkyBlueSoft.copy(alpha = 0.35f),
+                        unfocusedContainerColor = SkyBlueSoft.copy(alpha = 0.25f),
+                        focusedBorderColor = CobaltBluePrimary,
+                        unfocusedBorderColor = CrispBlueBorder.copy(alpha = 0.5f),
+                        focusedTextColor = DeepNavyInk,
+                        unfocusedTextColor = DeepNavyInk
                     )
-                }
+                )
 
                 Column(
-                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.5.dp, SolarYellowAccent),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                    ) {
-                        Image(
-                            bitmap = currentNoiseBitmap.asImageBitmap(),
-                            contentDescription = "Current Noise Texture",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Noise Texture (_noise.png)",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = DeepNavyInk
+                    TactileIconOrbButton(
+                        icon = Icons.Rounded.AutoFixHigh,
+                        contentDesc = "Create Texture",
+                        badgeText = "CREATE",
+                        orbSize = 52.dp,
+                        iconSize = 22.dp,
+                        enabled = !isBusy && promptText.isNotBlank(),
+                        pulseType = TactilePulse.TAP_LIGHT,
+                        onClick = { onGenerateNewTexture(promptText, targetNoiseChannel) },
+                        testTagName = "create_ai_texture_btn"
+                    )
+
+                    TactileIconOrbButton(
+                        icon = Icons.Rounded.Brush,
+                        contentDesc = "Edit Active Map",
+                        badgeText = "EDIT",
+                        orbSize = 52.dp,
+                        iconSize = 22.dp,
+                        isYellowAccent = true,
+                        enabled = !isBusy && promptText.isNotBlank(),
+                        pulseType = TactilePulse.TAP_LIGHT,
+                        onClick = { onEditExistingTexture(promptText, targetNoiseChannel) },
+                        testTagName = "edit_ai_texture_btn"
                     )
                 }
             }

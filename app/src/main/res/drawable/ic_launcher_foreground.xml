@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/img_launcher_voxelscan_1794062543321"
+        android:drawable="@drawable/img_voxelscan_logo_v12_1794072150003"
         android:gravity="center" />
 </layer-list>

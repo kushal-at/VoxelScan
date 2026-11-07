@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,15 +14,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.AutoAwesomeMotion
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.rounded.AddAPhoto
+import androidx.compose.material.icons.rounded.AutoAwesomeMotion
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DeveloperBoard
+import androidx.compose.material.icons.rounded.Flare
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.HourglassTop
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -32,26 +43,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.ScanAssetEntity
+import com.example.ui.components.FluentHairlineDivider
+import com.example.ui.components.FluentMetricStrip
 import com.example.ui.components.GlossyStatusPill
 import com.example.ui.components.GlossyTranslucentCard
-import com.example.ui.components.TactilePrimaryButton
-import com.example.ui.components.TelemetryStatTile
+import com.example.ui.components.TactileIconOrbButton
 import com.example.ui.theme.BrightYellowSurface
 import com.example.ui.theme.CobaltBluePrimary
-import com.example.ui.theme.CrispBlueBorder
 import com.example.ui.theme.DeepAmberInk
 import com.example.ui.theme.DeepNavyInk
+import com.example.ui.theme.PorcelainWhite
 import com.example.ui.theme.PureWhite
 import com.example.ui.theme.SkyBlueSoft
 import com.example.ui.theme.SlateBlueMuted
 import com.example.ui.theme.SolarYellowAccent
-import com.example.ui.theme.WarmYellowBorder
 import com.example.ui.viewmodel.BatchPipelineState
 import com.example.ui.viewmodel.CgpuEngineState
 import com.example.util.HapticFeedbackController
@@ -77,63 +89,104 @@ fun BatchAndCgpuScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(PorcelainWhite)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // 1. High-Volume Batch Pipeline Header & Execution Controls
-        GlossyTranslucentCard(
-            borderColor = if (batchState.isRunningBatch) WarmYellowBorder else CrispBlueBorder
-        ) {
+        // 1. Editorial Header & Icon-First Action Dock
+        GlossyTranslucentCard {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 GlossyStatusPill(
-                    text = "HIGH-VOLUME ASSET PIPELINE",
-                    icon = Icons.Default.AutoAwesomeMotion
+                    text = "BATCH PIPELINE",
+                    icon = Icons.Rounded.AutoAwesomeMotion
                 )
                 GlossyStatusPill(
-                    text = "${allAssets.size} ASSETS IN QUEUE",
-                    isYellowHighlight = true
+                    text = "${allAssets.size} QUEUED",
+                    isYellowHighlight = true,
+                    icon = Icons.Rounded.Layers
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Automated Multi-Video Deep Processing",
-                style = MaterialTheme.typography.headlineMedium,
-                color = DeepNavyInk
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Sequentially converts recorded video captures into quad-retopologized .fbx & .obj meshes with baked _albedo.png and _noise.png textures.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = SlateBlueMuted
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Multi-Video 3D Queue",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = DeepNavyInk,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Batch quad-retopology to .fbx & .obj with baked _albedo.png & _noise.png.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SlateBlueMuted
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Icon-First Run & Enqueue Orbs
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TactileIconOrbButton(
+                        icon = if (batchState.isRunningBatch) Icons.Rounded.HourglassTop else Icons.Rounded.PlayArrow,
+                        contentDesc = if (batchState.isRunningBatch) "Running Batch" else "Run Batch (${allAssets.size})",
+                        badgeText = if (batchState.isRunningBatch) "BUSY" else "RUN (${allAssets.size})",
+                        orbSize = 54.dp,
+                        iconSize = 26.dp,
+                        enabled = !batchState.isRunningBatch,
+                        pulseType = TactilePulse.BATCH_STEP_COMPLETE,
+                        onClick = onRunBatchPipeline,
+                        testTagName = "run_batch_pipeline_btn"
+                    )
+                    TactileIconOrbButton(
+                        icon = Icons.Rounded.AddAPhoto,
+                        contentDesc = "+ Enqueue Scan",
+                        badgeText = "+ SCAN",
+                        orbSize = 54.dp,
+                        iconSize = 22.dp,
+                        isYellowAccent = true,
+                        onClick = {
+                            val profiles = listOf("VASE_AMPHORA", "MODULAR_CRATE", "ORGANIC_BOULDER", "CUSTOM_VIDEO_SCAN")
+                            val chosen = profiles.random()
+                            onEnqueueBatchAsset("Batch Prop Capture #${(100..999).random()}", chosen)
+                        },
+                        testTagName = "enqueue_batch_job_btn"
+                    )
+                }
+            }
 
             if (batchState.isRunningBatch) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(22.dp),
                     color = BrightYellowSurface,
-                    border = BorderStroke(1.5.dp, WarmYellowBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Text(
                             text = "Processing: ${batchState.currentAssetTitle}",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             color = DeepNavyInk,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${batchState.currentStageName} (${batchState.completedAssetsCount}/${batchState.totalQueuedCount} completed)",
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = "${batchState.currentStageName} (${batchState.completedAssetsCount}/${batchState.totalQueuedCount})",
+                            style = MaterialTheme.typography.bodySmall,
                             color = DeepAmberInk
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -141,19 +194,18 @@ fun BatchAndCgpuScreen(
                             progress = { batchState.currentStageProgress },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(RoundedCornerShape(5.dp)),
+                                .height(8.dp)
+                                .clip(CircleShape),
                             color = CobaltBluePrimary,
                             trackColor = PureWhite
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(14.dp))
             } else if (batchState.lastBatchSummary.isNotBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     color = BrightYellowSurface,
-                    border = BorderStroke(1.dp, WarmYellowBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -161,110 +213,107 @@ fun BatchAndCgpuScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = "Batch Complete",
                             tint = CobaltBluePrimary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = batchState.lastBatchSummary,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = DeepNavyInk,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                TactilePrimaryButton(
-                    text = if (batchState.isRunningBatch) "Batch Running..." else "Run Batch Pipeline (${allAssets.size})",
-                    icon = Icons.Default.PlayArrow,
-                    enabled = !batchState.isRunningBatch,
-                    onClick = onRunBatchPipeline,
-                    pulseType = TactilePulse.BATCH_STEP_COMPLETE,
-                    modifier = Modifier.weight(1.3f),
-                    testTagName = "run_batch_pipeline_btn"
-                )
-                TactilePrimaryButton(
-                    text = "+ Add Scan Job",
-                    icon = Icons.Default.AddCircle,
-                    isYellowAccent = true,
-                    onClick = {
-                        val profiles = listOf("VASE_AMPHORA", "MODULAR_CRATE", "ORGANIC_BOULDER", "CUSTOM_VIDEO_SCAN")
-                        val chosen = profiles.random()
-                        onEnqueueBatchAsset("Batch Prop Capture #${(100..999).random()}", chosen)
-                    },
-                    modifier = Modifier.weight(1f),
-                    testTagName = "enqueue_batch_job_btn"
-                )
             }
         }
 
-        // 2. Queued & Processed Assets List
+        // 2. Microsoft Fluent 2 Divided List for Queued Assets
         GlossyTranslucentCard {
-            Text(
-                text = "Batch Asset Queue (Tap item to open in 3D Mesh Inspector)",
-                style = MaterialTheme.typography.titleMedium,
-                color = DeepNavyInk,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ViewInAr,
+                    contentDescription = null,
+                    tint = CobaltBluePrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Asset Queue • Tap to Inspect in 3D",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = DeepNavyInk,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                allAssets.forEach { asset ->
-                    Surface(
-                        onClick = {
+            allAssets.forEachIndexed { idx, asset ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable {
                             HapticFeedbackController.perform(context, haptics, TactilePulse.TAP_LIGHT)
                             onSelectAssetForInspection(asset)
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        color = PureWhite,
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = if (asset.status == "READY") CrispBlueBorder else WarmYellowBorder
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("batch_item_${asset.id}")
+                        }
+                        .padding(vertical = 12.dp, horizontal = 4.dp)
+                        .testTag("batch_item_${asset.id}"),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (asset.status == "READY") SkyBlueSoft else BrightYellowSurface
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = asset.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = DeepNavyInk,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "${asset.retopoQuadCount} Quads • ${asset.capturedGuidepoints}/${asset.totalGuidepoints} Guidepoints • ${asset.targetEngine}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = SlateBlueMuted
-                                )
-                            }
-                            GlossyStatusPill(
-                                text = asset.status,
-                                isYellowHighlight = asset.status != "READY"
+                            Icon(
+                                imageVector = Icons.Rounded.ViewInAr,
+                                contentDescription = asset.title,
+                                tint = if (asset.status == "READY") CobaltBluePrimary else DeepAmberInk,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = asset.title,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = DeepNavyInk,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${asset.retopoQuadCount} Quads • ${asset.capturedGuidepoints}/${asset.totalGuidepoints} Views • ${asset.targetEngine}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = SlateBlueMuted
                             )
                         }
                     }
+                    GlossyStatusPill(
+                        text = asset.status,
+                        isYellowHighlight = asset.status != "READY",
+                        icon = if (asset.status == "READY") Icons.Rounded.CheckCircle else Icons.Rounded.HourglassTop
+                    )
+                }
+                if (idx < allAssets.lastIndex) {
+                    FluentHairlineDivider()
                 }
             }
         }
 
-        // 3. Mobile CGPU & Low-End Device Optimization Console
+        // 3. Mobile CGPU & Low-End Device Optimization Console with Material Extended Icons
         GlossyTranslucentCard {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -273,61 +322,55 @@ fun BatchAndCgpuScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.Memory,
+                        imageVector = Icons.Rounded.Memory,
                         contentDescription = "Mobile CGPU Engine",
                         tint = CobaltBluePrimary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Mobile CGPU & Low-End Optimizer",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = DeepNavyInk
+                        style = MaterialTheme.typography.titleMedium,
+                        color = DeepNavyInk,
+                        fontWeight = FontWeight.Bold
                     )
                 }
                 GlossyStatusPill(
                     text = if (cgpuState.lowEndTurboEnabled) "TURBO ON" else "STANDARD",
                     isYellowHighlight = cgpuState.lowEndTurboEnabled,
-                    icon = Icons.Default.Speed
+                    icon = Icons.Rounded.Speed
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = cgpuState.hardwareTierLabel,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 color = CobaltBluePrimary
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                TelemetryStatTile(
-                    label = "CGPU Load",
-                    value = "${cgpuState.cgpuComputeUtilization}%",
-                    modifier = Modifier.weight(1f)
+            FluentMetricStrip(
+                metrics = listOf(
+                    Triple("CGPU Load", "${cgpuState.cgpuComputeUtilization}%", false),
+                    Triple("RAM Pool", "${cgpuState.memoryFootprintMb} MB", true),
+                    Triple("Target Rate", "${cgpuState.dynamicFramePacingFps} FPS", false)
+                ),
+                icons = listOf(
+                    Icons.Rounded.DeveloperBoard,
+                    Icons.Rounded.Storage,
+                    Icons.Rounded.Speed
                 )
-                TelemetryStatTile(
-                    label = "RAM Pool",
-                    value = "${cgpuState.memoryFootprintMb} MB",
-                    isHighlightedYellow = true,
-                    modifier = Modifier.weight(1f)
-                )
-                TelemetryStatTile(
-                    label = "Target FPS",
-                    value = "${cgpuState.dynamicFramePacingFps} FPS",
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            FluentHairlineDivider()
 
             CgpuOptimizationToggleRow(
+                icon = Icons.Rounded.Bolt,
                 title = "Low-End Device Turbo Mode",
-                subtitle = "Prioritizes zero-copy ringbuffers and lightweight mesh decimation on 2GB-4GB RAM devices.",
+                subtitle = "Zero-copy ringbuffers and lightweight mesh decimation on 2GB–4GB RAM devices.",
                 checked = cgpuState.lowEndTurboEnabled,
                 onCheckedChange = {
                     HapticFeedbackController.perform(context, haptics, TactilePulse.TAP_LIGHT)
@@ -335,12 +378,12 @@ fun BatchAndCgpuScreen(
                 },
                 testTag = "switch_low_end_turbo"
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
+            FluentHairlineDivider()
 
             CgpuOptimizationToggleRow(
+                icon = Icons.Rounded.Memory,
                 title = "INT8 Quantized Depth Map Solver",
-                subtitle = "Executes real-time depth guessing in 8-bit integer tensor blocks for 3.2x faster throughput.",
+                subtitle = "Executes real-time depth guessing in 8-bit integer tensor blocks for 3.2× faster throughput.",
                 checked = cgpuState.int8DepthQuantization,
                 onCheckedChange = {
                     HapticFeedbackController.perform(context, haptics, TactilePulse.TAP_LIGHT)
@@ -348,10 +391,10 @@ fun BatchAndCgpuScreen(
                 },
                 testTag = "switch_int8_depth"
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
+            FluentHairlineDivider()
 
             CgpuOptimizationToggleRow(
+                icon = Icons.Rounded.Flare,
                 title = "FP16 Half-Precision Lightray Shaders",
                 subtitle = "Uses mobile GPU half-float compute units for specular & normal vector reconstruction.",
                 checked = cgpuState.fp16LightrayShaders,
@@ -361,12 +404,12 @@ fun BatchAndCgpuScreen(
                 },
                 testTag = "switch_fp16_lightrays"
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
+            FluentHairlineDivider()
 
             CgpuOptimizationToggleRow(
+                icon = Icons.Rounded.GridView,
                 title = "Tile-Based Texture Memory Pooling",
-                subtitle = "Streams 512px-1024px Albedo & Noise tiles to prevent OutOfMemoryError during batch runs.",
+                subtitle = "Streams 512px Albedo & Noise tiles to prevent OutOfMemoryError during batch runs.",
                 checked = cgpuState.tileMemoryPooling,
                 onCheckedChange = {
                     HapticFeedbackController.perform(context, haptics, TactilePulse.TAP_LIGHT)
@@ -380,51 +423,60 @@ fun BatchAndCgpuScreen(
 
 @Composable
 private fun CgpuOptimizationToggleRow(
+    icon: ImageVector,
     title: String,
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     testTag: String
 ) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = PureWhite,
-        border = BorderStroke(1.dp, CrispBlueBorder),
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (checked) BrightYellowSurface else SkyBlueSoft),
+            contentAlignment = Alignment.Center
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = DeepNavyInk,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = SlateBlueMuted
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                modifier = Modifier.testTag(testTag),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = DeepNavyInk,
-                    checkedTrackColor = SolarYellowAccent,
-                    uncheckedThumbColor = CobaltBluePrimary,
-                    uncheckedTrackColor = SkyBlueSoft
-                )
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = if (checked) DeepAmberInk else CobaltBluePrimary,
+                modifier = Modifier.size(20.dp)
             )
         }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = DeepNavyInk,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = SlateBlueMuted
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.testTag(testTag),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = DeepNavyInk,
+                checkedTrackColor = SolarYellowAccent,
+                uncheckedThumbColor = CobaltBluePrimary,
+                uncheckedTrackColor = SkyBlueSoft
+            )
+        )
     }
 }

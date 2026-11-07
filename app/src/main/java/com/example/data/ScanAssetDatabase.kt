@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.Flow
 data class ScanAssetEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
-    val shapeProfile: String, // "VASE_AMPHORA", "MODULAR_CRATE", "ORGANIC_BOULDER", "CUSTOM_VIDEO_SCAN"
+    val shapeProfile: String, // "REAL_CAMERA_SCAN", "VASE_AMPHORA", "MODULAR_CRATE", "ORGANIC_BOULDER", "CUSTOM_VIDEO_SCAN"
     val status: String,       // "READY", "QUEUED", "PROCESSING"
     val rawTriangleCount: Int,
     val retopoQuadCount: Int,
@@ -33,6 +33,10 @@ data class ScanAssetEntity(
     val albedoPrimaryHex: String,
     val albedoSecondaryHex: String,
     val noiseScale: Float,
+    val radialProfileCsv: String = "",
+    val depthReliefCsv: String = "",
+    val albedoFilePath: String = "",
+    val noiseFilePath: String = "",
     val exportDirectoryPath: String = "",
     val createdAtMillis: Long = System.currentTimeMillis()
 )
@@ -55,7 +59,7 @@ interface ScanAssetDao {
     suspend fun deleteAssetById(id: Int)
 }
 
-@Database(entities = [ScanAssetEntity::class], version = 1, exportSchema = false)
+@Database(entities = [ScanAssetEntity::class], version = 2, exportSchema = false)
 abstract class ScanAssetDatabase : RoomDatabase() {
     abstract fun scanAssetDao(): ScanAssetDao
 
@@ -69,7 +73,9 @@ abstract class ScanAssetDatabase : RoomDatabase() {
                     context.applicationContext,
                     ScanAssetDatabase::class.java,
                     "voxelscan_assets.db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
@@ -91,7 +97,7 @@ class ScanAssetRepository(private val dao: ScanAssetDao) {
         val now = System.currentTimeMillis()
         val initialAssets = listOf(
             ScanAssetEntity(
-                title = "Ceramic Amphora Vessel",
+                title = "Sample: Ceramic Amphora",
                 shapeProfile = "VASE_AMPHORA",
                 status = "READY",
                 rawTriangleCount = 148_200,
@@ -111,7 +117,7 @@ class ScanAssetRepository(private val dao: ScanAssetDao) {
                 createdAtMillis = now - 300_000L
             ),
             ScanAssetEntity(
-                title = "Industrial Sci-Fi Cargo Crate",
+                title = "Sample: Sci-Fi Cargo Crate",
                 shapeProfile = "MODULAR_CRATE",
                 status = "READY",
                 rawTriangleCount = 96_400,
@@ -131,7 +137,7 @@ class ScanAssetRepository(private val dao: ScanAssetDao) {
                 createdAtMillis = now - 600_000L
             ),
             ScanAssetEntity(
-                title = "Nordic Basalt Cliff Outcrop",
+                title = "Sample: Basalt Cliff Outcrop",
                 shapeProfile = "ORGANIC_BOULDER",
                 status = "QUEUED",
                 rawTriangleCount = 210_000,
@@ -149,26 +155,6 @@ class ScanAssetRepository(private val dao: ScanAssetDao) {
                 albedoSecondaryHex = "#E5A900",
                 noiseScale = 1.85f,
                 createdAtMillis = now - 900_000L
-            ),
-            ScanAssetEntity(
-                title = "Turbine Housing Valve #04",
-                shapeProfile = "CUSTOM_VIDEO_SCAN",
-                status = "QUEUED",
-                rawTriangleCount = 164_500,
-                retopoQuadCount = 2_920,
-                vertexCount = 2_960,
-                uvEfficiencyPercent = 93,
-                accuracyScorePercent = 95,
-                capturedGuidepoints = 12,
-                totalGuidepoints = 12,
-                lightraySamples = 590,
-                depthConfidencePercent = 96,
-                videoDurationSec = 27,
-                targetEngine = "UNITY_URP",
-                albedoPrimaryHex = "#0A4D9C",
-                albedoSecondaryHex = "#F5B800",
-                noiseScale = 1.20f,
-                createdAtMillis = now - 1_200_000L
             )
         )
         initialAssets.forEach { dao.insertAsset(it) }

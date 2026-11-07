@@ -2,17 +2,15 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,14 +28,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddLocationAlt
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.StopCircle
-import androidx.compose.material.icons.filled.ViewInAr
+import androidx.compose.material.icons.rounded.AddAPhoto
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.CenterFocusStrong
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.FiberManualRecord
+import androidx.compose.material.icons.rounded.Flare
+import androidx.compose.material.icons.rounded.Grid4x4
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -55,42 +60,51 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.R
+import com.example.domain.MeshRetopologyEngine
+import com.example.ui.components.CameraXPreviewSurface
+import com.example.ui.components.CircularHudIconButton
+import com.example.ui.components.CircularScanProgressOverlay
+import com.example.ui.components.FluentHairlineDivider
+import com.example.ui.components.FluentMetricStrip
 import com.example.ui.components.GlossyStatusPill
-import com.example.ui.components.GlossyTranslucentCard
 import com.example.ui.components.TactileFilterChip
-import com.example.ui.components.TactilePrimaryButton
-import com.example.ui.components.TelemetryStatTile
+import com.example.ui.components.TactileIconOrbButton
 import com.example.ui.theme.BrightYellowSurface
 import com.example.ui.theme.CobaltBluePrimary
 import com.example.ui.theme.CrispBlueBorder
 import com.example.ui.theme.DeepAmberInk
 import com.example.ui.theme.DeepNavyInk
+import com.example.ui.theme.PorcelainWhite
 import com.example.ui.theme.PureWhite
 import com.example.ui.theme.RoyalBlueAccent
 import com.example.ui.theme.SkyBlueSoft
 import com.example.ui.theme.SlateBlueMuted
 import com.example.ui.theme.SolarYellowAccent
+import com.example.ui.theme.TranslucentGlossWhite
 import com.example.ui.theme.TranslucentHudOverlay
-import com.example.ui.theme.WarmYellowBorder
 import com.example.ui.viewmodel.ScannerHudState
 import com.example.util.HapticFeedbackController
+import com.example.util.ImuPoseSnapshot
+import com.example.util.ImuPoseTracker
+import com.example.util.PhotogrammetryCameraController
+import com.example.util.SynchronizedRgbFramePacket
 import com.example.util.TactilePulse
-import java.util.concurrent.Executors
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -99,15 +113,21 @@ import kotlin.math.sin
 fun ScannerScreen(
     scannerState: ScannerHudState,
     onToggleRecording: () -> Unit,
-    onLockGuidepoint: () -> Unit,
+    onCaptureGuidepointManually: () -> Unit,
+    onResetScan: () -> Unit,
+    onToggleAutoImuLock: () -> Unit,
     onToggleDepthOverlay: () -> Unit,
     onToggleLightrayOverlay: () -> Unit,
-    onSelectCaptureProfile: (String) -> Unit,
-    onCameraFrameAnalyzed: (List<Float>, Int, Int, Int) -> Unit,
+    onAeAfLockChanged: (Boolean) -> Unit,
+    onImuPoseUpdated: (ImuPoseSnapshot) -> Unit,
+    onManualHudOrbitDrag: (Int, Int) -> Unit,
+    onSynchronizedCameraPacket: (SynchronizedRgbFramePacket) -> Unit,
+    onHighResKeyframeCaptured: (Bitmap, ImuPoseSnapshot, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -121,305 +141,432 @@ fun ScannerScreen(
         hasCameraPermission = granted
     }
 
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    LaunchedEffect(scannerState.lastLockedKeyframeEventId) {
+        if (scannerState.lastLockedKeyframeEventId > 0L) {
+            HapticFeedbackController.perform(context, haptics, TactilePulse.GUIDEPOINT_LOCK)
+        }
+    }
+
+    val imuPoseTracker = remember(context) {
+        ImuPoseTracker(context) { snapshot ->
+            onImuPoseUpdated(snapshot)
+        }
+    }
+
+    val previewView = remember(context) {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+        }
+    }
+
+    val cameraController = remember(context, imuPoseTracker) {
+        PhotogrammetryCameraController(
+            context = context,
+            imuPoseTracker = imuPoseTracker,
+            onRealtimeFramePacket = onSynchronizedCameraPacket,
+            onHighResKeyframeCaptured = onHighResKeyframeCaptured
+        )
+    }
+
+    DisposableEffect(imuPoseTracker) {
+        imuPoseTracker.start()
+        onDispose {
+            imuPoseTracker.stop()
+        }
+    }
+
+    DisposableEffect(cameraController) {
+        onDispose {
+            cameraController.shutdown()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .background(PorcelainWhite)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        // 1. Top Accuracy Guidance Banner (Smooth Glossy Translucent Card)
-        GlossyTranslucentCard(
-            borderColor = if (scannerState.isRecordingVideo) WarmYellowBorder else CrispBlueBorder
+        // 1. Immersive Google Pixel Camera / Google Lens Spatial Viewfinder Stage
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .height(425.dp)
+                .clip(RoundedCornerShape(32.dp))
+                .background(PureWhite)
+                .testTag("realtime_scanner_viewport")
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GlossyStatusPill(
-                    text = if (scannerState.isRecordingVideo) {
-                        "REC ${scannerState.recordingSeconds}s • 60FPS DEPTH"
-                    } else {
-                        "GUIDEPOINT CALIBRATION READY"
-                    },
-                    isYellowHighlight = scannerState.isRecordingVideo,
-                    icon = if (scannerState.isRecordingVideo) Icons.Default.FiberManualRecord else Icons.Default.ViewInAr
+            val capturedCount = maxOf(scannerState.capturedKeyframes.size, scannerState.lockedGuidepoints)
+            if (hasCameraPermission) {
+                CameraXPreviewSurface(
+                    previewView = previewView,
+                    cameraController = cameraController,
+                    onOrbitDrag = onManualHudOrbitDrag,
+                    capturedKeyframesCount = capturedCount,
+                    totalKeyframesCount = scannerState.totalGuidepoints,
+                    modifier = Modifier.fillMaxSize()
                 )
-                GlossyStatusPill(
-                    text = "ACCURACY ${scannerState.accuracyScorePercent}%",
-                    isYellowHighlight = true,
-                    icon = Icons.Default.CheckCircle
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.img_launch_hero_v12_1794072150623),
+                    contentDescription = "Geodesic 3D Scan Guidepoint Stage",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                val dAz = (dragAmount.x * 0.25f).toInt()
+                                val dPitch = (-dragAmount.y * 0.18f).toInt()
+                                if (dAz != 0 || dPitch != 0) {
+                                    onManualHudOrbitDrag(dAz, dPitch)
+                                }
+                            }
+                        },
+                    contentScale = ContentScale.Crop
+                )
+                CircularScanProgressOverlay(
+                    capturedKeyframesCount = capturedCount,
+                    totalKeyframesCount = scannerState.totalGuidepoints,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = scannerState.guidanceInstruction,
-                style = MaterialTheme.typography.titleLarge,
-                color = DeepNavyInk
+            // Live IMU-rotated Geodesic Dome + 8x8 Monocular Depth Contours + Lightray Vectors
+            RealtimeDepthAndGuidepointHudCanvas(
+                scannerState = scannerState,
+                modifier = Modifier.fillMaxSize()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Floating Top Google Lens Compact Coaching Pill
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = TranslucentHudOverlay,
+                shadowElevation = 4.dp,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = if (scannerState.isRecordingVideo) SolarYellowAccent else CrispBlueBorder.copy(alpha = 0.7f)
+                ),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        GlossyStatusPill(
+                            text = if (scannerState.isRecordingVideo) {
+                                "REC ${scannerState.recordingSeconds}s"
+                            } else {
+                                "GP-${String.format(Locale.US, "%02d", scannerState.activeGuidepointIndex)} • ${scannerState.targetGuidepointAzimuthDeg}°"
+                            },
+                            isYellowHighlight = scannerState.isRecordingVideo,
+                            icon = if (scannerState.isRecordingVideo) Icons.Rounded.FiberManualRecord else Icons.Rounded.Explore
+                        )
+                        GlossyStatusPill(
+                            text = "${scannerState.lockedGuidepoints}/${scannerState.totalGuidepoints}",
+                            isYellowHighlight = true,
+                            icon = Icons.Rounded.CheckCircle
+                        )
+                    }
 
-            Text(
-                text = "Guidepoints Locked: ${scannerState.lockedGuidepoints}/${scannerState.totalGuidepoints} • Lightray Vector: ${scannerState.lightrayAzimuthDeg}° Az / ${scannerState.lightrayElevationDeg}° El (${scannerState.estimatedLux} lx)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = SlateBlueMuted
-            )
+                    Spacer(modifier = Modifier.height(4.dp))
 
-            if (scannerState.isDeepProcessing) {
-                Spacer(modifier = Modifier.height(14.dp))
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = BrightYellowSurface,
-                    border = BorderStroke(1.dp, WarmYellowBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = scannerState.guidanceInstruction,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = DeepNavyInk,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (scannerState.isDeepProcessing) {
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = scannerState.deepProcessStage,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             color = DeepAmberInk
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         LinearProgressIndicator(
                             progress = { scannerState.deepProcessProgress },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
+                                .height(6.dp)
+                                .clip(CircleShape),
                             color = CobaltBluePrimary,
-                            trackColor = PureWhite
+                            trackColor = BrightYellowSurface
                         )
                     }
                 }
             }
-        }
 
-        // 2. Realtime Video + Depth Map + Lightray + Geodesic Guidepoints Viewport
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(340.dp)
-                .testTag("realtime_scanner_viewport"),
-            shape = RoundedCornerShape(28.dp),
-            color = PureWhite,
-            shadowElevation = 6.dp,
-            border = BorderStroke(2.dp, if (scannerState.isRecordingVideo) SolarYellowAccent else CobaltBluePrimary)
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (hasCameraPermission) {
-                    RealtimeCameraDepthPreview(
-                        onFrameMetrics = onCameraFrameAnalyzed,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    // Clean illustrated geodesic guide diagram when camera permission not yet granted
-                    Image(
-                        painter = painterResource(id = R.drawable.img_hero_scanner_guide_1794062544213),
-                        contentDescription = "Geodesic 3D Scan Guidepoint Diagram",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-
-                // Interactive Realtime Depth Map + Lightray Vectors + 12 Orbital Guidepoints HUD Canvas
-                RealtimeDepthAndGuidepointHudCanvas(
-                    scannerState = scannerState,
-                    modifier = Modifier.fillMaxSize()
+            // Floating Right-Side Pure Circular Icon Rail (Pixel Camera Style — No Text Clutter)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                CircularHudIconButton(
+                    icon = if (scannerState.isAeAfLocked) Icons.Rounded.Lock else Icons.Rounded.CenterFocusStrong,
+                    label = "Toggle AE/AF Exposure Lock",
+                    active = scannerState.isAeAfLocked,
+                    activeYellow = true,
+                    onClick = {
+                        val locked = cameraController.toggleExposureAndFocusLock(previewView)
+                        onAeAfLockChanged(locked)
+                    },
+                    testTagName = "toggle_ae_af_lock_btn"
                 )
 
-                // Top-right HUD Layer Toggles (Depth Map & Lightrays)
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        onClick = {
-                            HapticFeedbackController.perform(context, haptics, TactilePulse.TAP_LIGHT)
-                            onToggleDepthOverlay()
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (scannerState.showDepthHeatmapOverlay) CobaltBluePrimary else TranslucentHudOverlay,
-                        border = BorderStroke(1.dp, CrispBlueBorder),
-                        modifier = Modifier.testTag("toggle_depth_overlay_btn")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GridOn,
-                                contentDescription = "Toggle Depth Map",
-                                tint = if (scannerState.showDepthHeatmapOverlay) PureWhite else CobaltBluePrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "DEPTH",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (scannerState.showDepthHeatmapOverlay) PureWhite else CobaltBluePrimary
-                            )
-                        }
-                    }
+                CircularHudIconButton(
+                    icon = Icons.Rounded.Grid4x4,
+                    label = "Toggle Depth Map Overlay",
+                    active = scannerState.showDepthHeatmapOverlay,
+                    activeYellow = false,
+                    onClick = onToggleDepthOverlay,
+                    testTagName = "toggle_depth_overlay_btn"
+                )
 
-                    Surface(
-                        onClick = {
-                            HapticFeedbackController.perform(context, haptics, TactilePulse.TAP_LIGHT)
-                            onToggleLightrayOverlay()
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (scannerState.showLightrayVectorsOverlay) SolarYellowAccent else TranslucentHudOverlay,
-                        border = BorderStroke(1.dp, WarmYellowBorder),
-                        modifier = Modifier.testTag("toggle_lightray_overlay_btn")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LightMode,
-                                contentDescription = "Toggle Lightrays",
-                                tint = DeepNavyInk,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "RAYS",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = DeepNavyInk
-                            )
-                        }
-                    }
-                }
+                CircularHudIconButton(
+                    icon = Icons.Rounded.Flare,
+                    label = "Toggle Lightray Vectors",
+                    active = scannerState.showLightrayVectorsOverlay,
+                    activeYellow = true,
+                    onClick = onToggleLightrayOverlay,
+                    testTagName = "toggle_lightray_overlay_btn"
+                )
+            }
 
-                // Optional Camera Permission Chip at bottom-left of viewport if not yet granted
-                if (!hasCameraPermission) {
-                    Surface(
-                        onClick = {
-                            HapticFeedbackController.perform(context, haptics, TactilePulse.TAP_LIGHT)
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        },
-                        shape = RoundedCornerShape(14.dp),
-                        color = TranslucentHudOverlay,
-                        border = BorderStroke(1.5.dp, CobaltBluePrimary),
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(14.dp)
-                            .testTag("enable_live_camera_btn")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Enable Camera Sensor",
-                                tint = CobaltBluePrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Enable Live Camera Sensor",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = CobaltBluePrimary
-                            )
-                        }
-                    }
-                }
+            // Floating Camera Permission Icon Orb (if camera permission not yet granted)
+            if (!hasCameraPermission) {
+                TactileIconOrbButton(
+                    icon = Icons.Rounded.CameraAlt,
+                    contentDesc = "Enable Live Camera",
+                    badgeText = "Grant Camera",
+                    orbSize = 64.dp,
+                    iconSize = 28.dp,
+                    isYellowAccent = true,
+                    onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                    testTagName = "enable_live_camera_btn",
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
         }
 
-        // 3. Primary Capture & Guidepoint Actions (With Tactile Haptic Feedback)
-        Row(
+        // 2. Icon-First Camera Shutter & Sensor Command Deck (Google Pixel Camera + Fluent 2)
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            color = TranslucentGlossWhite,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            TactilePrimaryButton(
-                text = if (scannerState.isRecordingVideo) "Finish & Deep Process" else "Start Video Capture",
-                icon = if (scannerState.isRecordingVideo) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
-                onClick = onToggleRecording,
-                isYellowAccent = scannerState.isRecordingVideo,
-                pulseType = TactilePulse.RECORD_START_STOP,
-                modifier = Modifier.weight(1.2f),
-                testTagName = "record_video_scan_btn"
-            )
-
-            TactilePrimaryButton(
-                text = "Lock GP (${scannerState.lockedGuidepoints}/${scannerState.totalGuidepoints})",
-                icon = Icons.Default.AddLocationAlt,
-                onClick = onLockGuidepoint,
-                isYellowAccent = true,
-                pulseType = TactilePulse.GUIDEPOINT_LOCK,
-                modifier = Modifier.weight(1f),
-                testTagName = "lock_guidepoint_btn"
-            )
-        }
-
-        // 4. Subject Topology Profile Selector & Live Telemetry Strip
-        GlossyTranslucentCard {
-            Text(
-                text = "Subject Retopology Target Profile",
-                style = MaterialTheme.typography.titleMedium,
-                color = DeepNavyInk,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Select subject geometry prior to optimize depth-map guessing & quad edge-flow.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = SlateBlueMuted
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-
-            val profiles = listOf(
-                "VASE_AMPHORA" to "Ceramic Vessel",
-                "MODULAR_CRATE" to "Hard-Surface Crate",
-                "ORGANIC_BOULDER" to "Organic Rock",
-                "CUSTOM_VIDEO_SCAN" to "Mechanical Part"
-            )
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                profiles.forEach { (key, label) ->
-                    TactileFilterChip(
-                        label = label,
-                        selected = scannerState.selectedCaptureProfile == key,
-                        onClick = { onSelectCaptureProfile(key) },
-                        testTagName = "profile_chip_$key"
+                // Primary Icon-First Camera Shutter Dock (Replaces wide text buttons)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left: Compact Icon Mode Switcher (Auto-Gyro vs Turntable)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TactileFilterChip(
+                            label = "Auto Gyro",
+                            selected = scannerState.autoImuLockEnabled,
+                            onClick = onToggleAutoImuLock,
+                            leadingIcon = Icons.Rounded.Explore,
+                            iconOnly = true,
+                            testTagName = "chip_auto_imu_lock"
+                        )
+                        TactileFilterChip(
+                            label = "Turntable",
+                            selected = !scannerState.autoImuLockEnabled,
+                            onClick = onToggleAutoImuLock,
+                            leadingIcon = Icons.Rounded.Sync,
+                            iconOnly = true,
+                            testTagName = "chip_manual_turntable"
+                        )
+                    }
+
+                    // Center: Iconic 72.dp Circular Camera Shutter / 3D Build Orb
+                    TactileIconOrbButton(
+                        icon = when {
+                            scannerState.isRecordingVideo -> Icons.Rounded.Stop
+                            scannerState.lockedGuidepoints > 0 -> Icons.Rounded.ViewInAr
+                            else -> Icons.Rounded.Videocam
+                        },
+                        contentDesc = if (scannerState.isRecordingVideo) {
+                            "Finish and Reconstruct 3D Mesh"
+                        } else {
+                            "Start Real 3D Scan"
+                        },
+                        badgeText = when {
+                            scannerState.isRecordingVideo -> "Finish (${scannerState.lockedGuidepoints})"
+                            scannerState.lockedGuidepoints > 0 -> "Build 3D (${scannerState.lockedGuidepoints})"
+                            else -> "Scan 3D"
+                        },
+                        orbSize = 72.dp,
+                        iconSize = 32.dp,
+                        isYellowAccent = scannerState.isRecordingVideo,
+                        pulseType = TactilePulse.RECORD_START_STOP,
+                        onClick = onToggleRecording,
+                        testTagName = "record_video_scan_btn"
                     )
+
+                    // Right: Circular Keyframe Snap Orb + Optional Reset Orb
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TactileIconOrbButton(
+                            icon = Icons.Rounded.AddAPhoto,
+                            contentDesc = "Capture High-Res Angle Keyframe",
+                            badgeText = "${scannerState.lockedGuidepoints}/12",
+                            orbSize = 56.dp,
+                            iconSize = 24.dp,
+                            isYellowAccent = true,
+                            pulseType = TactilePulse.GUIDEPOINT_LOCK,
+                            onClick = {
+                                if (hasCameraPermission) {
+                                    cameraController.captureHighQualityRgbKeyframe(previewView)
+                                } else {
+                                    onCaptureGuidepointManually()
+                                }
+                            },
+                            testTagName = "lock_guidepoint_btn"
+                        )
+
+                        if (scannerState.capturedKeyframes.isNotEmpty()) {
+                            TactileIconOrbButton(
+                                icon = Icons.Rounded.RestartAlt,
+                                contentDesc = "Reset Captured Keyframes",
+                                badgeText = "Reset",
+                                orbSize = 48.dp,
+                                iconSize = 20.dp,
+                                isSoftSurface = true,
+                                onClick = {
+                                    imuPoseTracker.resetTranslationOrigin()
+                                    onResetScan()
+                                },
+                                testTagName = "reset_scan_keyframes_btn"
+                            )
+                        }
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // Captured Keyframes Filmstrip (Google Photos Filmstrip style)
+                if (scannerState.capturedKeyframes.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        scannerState.capturedKeyframes.forEach { kf ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.width(64.dp)
+                            ) {
+                                Image(
+                                    bitmap = kf.rgbBitmap.asImageBitmap(),
+                                    contentDescription = "Captured Keyframe GP-${kf.guidepointIndex}",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = "${kf.azimuthDeg}°",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = DeepNavyInk,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                TelemetryStatTile(
-                    label = "Depth Confidence",
-                    value = "${scannerState.depthConfidencePercent}%",
-                    modifier = Modifier.weight(1f)
-                )
-                TelemetryStatTile(
-                    label = "Lightray Vector",
-                    value = "${scannerState.lightrayAzimuthDeg}° / ${scannerState.lightrayElevationDeg}°",
-                    isHighlightedYellow = true,
-                    modifier = Modifier.weight(1f)
-                )
-                TelemetryStatTile(
-                    label = "Guidepoints",
-                    value = "${scannerState.lockedGuidepoints} / ${scannerState.totalGuidepoints}",
-                    modifier = Modifier.weight(1f)
-                )
+                FluentHairlineDivider()
+
+                // Icon-Enhanced 3-Column Sensor & 3D Depth Registration Ribbon
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("imu_sensor_fusion_card")
+                ) {
+                    FluentMetricStrip(
+                        metrics = listOf(
+                            Triple("Azimuth", "${scannerState.imuAzimuthDeg}°", false),
+                            Triple("Gyro |ω|", "${scannerState.imuAngularSpeedDegPerSec.toInt()}°/s", !scannerState.isDeviceSteady),
+                            Triple("Accel |a|", String.format(Locale.US, "%.2fm/s²", scannerState.imuLinearAccelMps2), false)
+                        ),
+                        icons = listOf(
+                            Icons.Rounded.Explore,
+                            Icons.Rounded.Sync,
+                            Icons.Rounded.Speed
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = String.format(
+                                Locale.US,
+                                "Quat [%.2f, %.2f, %.2f, %.2f] • %.2fm • %d Pts",
+                                scannerState.imuQuaternionW,
+                                scannerState.imuQuaternionX,
+                                scannerState.imuQuaternionY,
+                                scannerState.imuQuaternionZ,
+                                scannerState.estimatedSubjectDepthMeters,
+                                scannerState.registeredWorldPointsCount
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SlateBlueMuted
+                        )
+                        Text(
+                            text = String.format(
+                                Locale.US,
+                                "Reg %d%% • %.2fmm",
+                                scannerState.registrationConfidencePercent,
+                                scannerState.reprojectionErrorMm
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CobaltBluePrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     }
@@ -434,13 +581,12 @@ private fun RealtimeDepthAndGuidepointHudCanvas(
         val w = size.width
         val h = size.height
         val cx = w * 0.5f
-        val cy = h * 0.52f
-        val domeRadius = minOf(w, h) * 0.36f
+        val cy = h * 0.54f
+        val domeRadius = minOf(w, h) * 0.33f
 
-        // 1. Optional 8x8 Realtime Depth Map Grid Overlay (Blue/Yellow contour cells)
         if (scannerState.showDepthHeatmapOverlay && scannerState.depthMatrix8x8.size >= 64) {
-            val gridW = domeRadius * 1.6f
-            val gridH = domeRadius * 1.6f
+            val gridW = domeRadius * 1.50f
+            val gridH = domeRadius * 1.50f
             val startX = cx - gridW * 0.5f
             val startY = cy - gridH * 0.5f
             val cellW = gridW / 8f
@@ -449,10 +595,10 @@ private fun RealtimeDepthAndGuidepointHudCanvas(
             for (r in 0 until 8) {
                 for (c in 0 until 8) {
                     val depthVal = scannerState.depthMatrix8x8[r * 8 + c]
-                    val cellColor = if (depthVal > 0.68f) {
+                    val cellColor = if (depthVal > 0.62f) {
                         SolarYellowAccent.copy(alpha = 0.22f)
                     } else {
-                        CobaltBluePrimary.copy(alpha = 0.16f)
+                        CobaltBluePrimary.copy(alpha = 0.12f)
                     }
                     drawRect(
                         color = cellColor,
@@ -463,83 +609,86 @@ private fun RealtimeDepthAndGuidepointHudCanvas(
             }
         }
 
-        // 2. Geodesic Orbit Ring & Crosshair Calibration Guides
         drawCircle(
-            color = CobaltBluePrimary.copy(alpha = 0.75f),
+            color = CobaltBluePrimary.copy(alpha = 0.80f),
             radius = domeRadius,
             center = Offset(cx, cy),
             style = Stroke(
-                width = 2.5f,
+                width = 2.2f,
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
             )
         )
         drawCircle(
-            color = SolarYellowAccent.copy(alpha = 0.85f),
-            radius = domeRadius * 0.58f,
+            color = SolarYellowAccent.copy(alpha = 0.90f),
+            radius = domeRadius * 0.52f,
             center = Offset(cx, cy),
-            style = Stroke(width = 2f)
+            style = Stroke(width = 2.0f)
         )
 
-        // 3. Realtime Incident Lightray Direction Vectors (Yellow Rays converging on subject)
         if (scannerState.showLightrayVectorsOverlay) {
             val azRad = (scannerState.lightrayAzimuthDeg.toFloat() / 180f) * PI.toFloat()
             for (rayIdx in -1..1) {
-                val rayAngle = azRad + rayIdx * 0.38f
+                val rayAngle = azRad + rayIdx * 0.36f
                 val startPt = Offset(
-                    cx + cos(rayAngle) * (domeRadius * 1.18f),
-                    cy + sin(rayAngle) * (domeRadius * 1.18f)
+                    cx + cos(rayAngle) * (domeRadius * 1.15f),
+                    cy + sin(rayAngle) * (domeRadius * 0.34f)
                 )
                 val endPt = Offset(
-                    cx + cos(rayAngle) * (domeRadius * 0.35f),
-                    cy + sin(rayAngle) * (domeRadius * 0.35f)
+                    cx + cos(rayAngle) * (domeRadius * 0.34f),
+                    cy + sin(rayAngle) * (domeRadius * 0.34f)
                 )
                 drawLine(
                     color = SolarYellowAccent,
-                    start = startPt,
+                    start = Offset(
+                        cx + cos(rayAngle) * (domeRadius * 1.15f),
+                        cy + sin(rayAngle) * (domeRadius * 1.15f)
+                    ),
                     end = endPt,
-                    strokeWidth = 4.5f,
+                    strokeWidth = 4.0f,
                     cap = StrokeCap.Round
                 )
                 drawCircle(
                     color = CobaltBluePrimary,
-                    radius = 6f,
+                    radius = 5.0f,
                     center = endPt
                 )
             }
         }
 
-        // 4. 12 Orbital Guidepoints around the Geodesic Ring
+        val imuOffsetRad = (scannerState.imuAzimuthDeg.toFloat() / 180f) * PI.toFloat()
         val total = scannerState.totalGuidepoints.coerceAtLeast(1)
+
         for (i in 0 until total) {
-            val angle = (i.toFloat() / total.toFloat()) * 2f * PI.toFloat() - (PI.toFloat() / 2f)
-            val gx = cx + cos(angle) * domeRadius
-            val gy = cy + sin(angle) * domeRadius
-            val isLocked = i < scannerState.lockedGuidepoints
-            val isNextTarget = (i + 1) == scannerState.activeGuidepointIndex
+            val gpNumber = i + 1
+            val gpTargetRad = (MeshRetopologyEngine.getTargetAzimuthForGuidepoint(gpNumber) / 180f) * PI.toFloat()
+            val relAngle = gpTargetRad - imuOffsetRad - (PI.toFloat() / 2f)
+            val gx = cx + cos(relAngle) * domeRadius
+            val gy = cy + sin(relAngle) * domeRadius
+            val isLocked = gpNumber in scannerState.lockedGuidepointIndices
+            val isNextTarget = gpNumber == scannerState.activeGuidepointIndex
 
             if (isLocked) {
                 drawCircle(
                     color = PureWhite,
-                    radius = 13f,
+                    radius = 12f,
                     center = Offset(gx, gy)
                 )
                 drawCircle(
                     color = CobaltBluePrimary,
-                    radius = 10f,
+                    radius = 9f,
                     center = Offset(gx, gy)
                 )
                 drawCircle(
                     color = SolarYellowAccent,
-                    radius = 4.5f,
+                    radius = 4f,
                     center = Offset(gx, gy)
                 )
             } else if (isNextTarget) {
-                // Active target guidepoint pulsing reticle in bright yellow
                 drawCircle(
                     color = SolarYellowAccent,
                     radius = 16f,
                     center = Offset(gx, gy),
-                    style = Stroke(width = 4f)
+                    style = Stroke(width = 4.0f)
                 )
                 drawCircle(
                     color = SolarYellowAccent,
@@ -549,110 +698,24 @@ private fun RealtimeDepthAndGuidepointHudCanvas(
             } else {
                 drawCircle(
                     color = PureWhite,
-                    radius = 9f,
+                    radius = 8.5f,
                     center = Offset(gx, gy)
                 )
                 drawCircle(
                     color = RoyalBlueAccent,
-                    radius = 9f,
+                    radius = 8.5f,
                     center = Offset(gx, gy),
-                    style = Stroke(width = 2.5f)
+                    style = Stroke(width = 2.2f)
                 )
             }
         }
+
+        val topSensorReticle = Offset(cx, cy - domeRadius)
+        drawCircle(
+            color = SolarYellowAccent,
+            radius = 20f,
+            center = topSensorReticle,
+            style = Stroke(width = 2.8f)
+        )
     }
-}
-
-@Composable
-private fun RealtimeCameraDepthPreview(
-    onFrameMetrics: (List<Float>, Int, Int, Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView = remember { PreviewView(context) }
-    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            analysisExecutor.shutdown()
-        }
-    }
-
-    LaunchedEffect(lifecycleOwner) {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            try {
-                val cameraProvider = cameraProviderFuture.get()
-                val preview = Preview.Builder().build().also {
-                    it.surfaceProvider = previewView.surfaceProvider
-                }
-                val imageAnalysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-
-                var lastAnalyzedMs = 0L
-                imageAnalysis.setAnalyzer(analysisExecutor) { imageProxy ->
-                    val now = System.currentTimeMillis()
-                    if (now - lastAnalyzedMs >= 350L) {
-                        lastAnalyzedMs = now
-                        val plane = imageProxy.planes.firstOrNull()
-                        if (plane != null) {
-                            val buffer = plane.buffer
-                            val width = imageProxy.width.coerceAtLeast(8)
-                            val height = imageProxy.height.coerceAtLeast(8)
-                            val rowStride = plane.rowStride
-                            val pixelStride = plane.pixelStride
-                            val grid = ArrayList<Float>(64)
-                            var lumaSum = 0L
-                            var brightestX = 4
-                            var brightestY = 4
-                            var maxCellLuma = -1
-
-                            for (r in 0 until 8) {
-                                val py = ((r + 0.5f) * height / 8f).toInt().coerceIn(0, height - 1)
-                                for (c in 0 until 8) {
-                                    val px = ((c + 0.5f) * width / 8f).toInt().coerceIn(0, width - 1)
-                                    val idx = py * rowStride + px * pixelStride
-                                    val luma = if (idx >= 0 && idx < buffer.limit()) {
-                                        buffer.get(idx).toInt() and 0xFF
-                                    } else {
-                                        140
-                                    }
-                                    lumaSum += luma
-                                    if (luma > maxCellLuma) {
-                                        maxCellLuma = luma
-                                        brightestX = c
-                                        brightestY = r
-                                    }
-                                    grid.add((luma / 255f).coerceIn(0.1f, 0.99f))
-                                }
-                            }
-                            val avgLuma = (lumaSum / 64L).toInt()
-                            val estLux = (avgLuma * 4).coerceIn(120, 1200)
-                            val azimuth = ((brightestX / 7f) * 360f).toInt().coerceIn(0, 359)
-                            val elevation = (25 + ((7 - brightestY) / 7f) * 60f).toInt().coerceIn(15, 85)
-                            onFrameMetrics(grid, azimuth, elevation, estLux)
-                        }
-                    }
-                    imageProxy.close()
-                }
-
-                cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    imageAnalysis
-                )
-            } catch (_: Exception) {
-                // Fallback gracefully on emulators without physical camera hardware
-            }
-        }, ContextCompat.getMainExecutor(context))
-    }
-
-    AndroidView(
-        factory = { previewView },
-        modifier = modifier
-    )
 }

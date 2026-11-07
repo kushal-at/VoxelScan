@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar" />
+    <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/launch_splash_background</item>
+        <item name="android:statusBarColor">#F8FAFE</item>
+        <item name="android:navigationBarColor">#F8FAFE</item>
+    </style>
 </resources>
