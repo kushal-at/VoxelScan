@@ -28,10 +28,13 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK Licenses
-        run: |
-          yes | sdkmanager --licenses > /dev/null || true
+        with:
+          cmdline-tools-version: 'latest'
+          packages: |
+            platform-tools
+            platforms;android-36
+            build-tools;36.0.0
+          accept-licenses: 'y'
 
       - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
@@ -73,7 +76,7 @@ jobs:
       - name: Package Version 1.2 Release APK
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk VoxelScan-3D-v1.2.apk
-          cp app/build/outputs/apk/debug/app-debug.apk VoxelScan-3D-v1.2.${{ github.run_number }}.apk
+          cp app/build/outputs/apk/debug/app-debug.apk "VoxelScan-3D-v1.2.${{ github.run_number }}.apk"
 
       - name: Upload VoxelScan 3D v1.2 APK Artifact
         uses: actions/upload-artifact@v4
@@ -90,9 +93,10 @@ jobs:
           name: "VoxelScan 3D v1.2 (Build #${{ github.run_number }})"
           body: |
             ## VoxelScan 3D — Version 1.2 Release
-            - **Icon-First Material Extended UI**: Streamlined circular icon-orb shutter dock, floating 3D render-mode icon bar, and tactile icon controls across Scanner, 3D Studio, Batch Pipeline, and AI Texture Studio.
-            - **Redesigned App Logo & Launch Screen**: New isometric voxel-to-quad emblem, adaptive launcher icon, and animated 3D studio launch screen.
-            - **Core Photogrammetry & Export Engine**: CameraX `Preview` + `ImageAnalysis` 3D depth registration + `ImageCapture`, 3-sensor 6-DoF `ImuPoseTracker`, and ASCII 7.4 `.fbx` + `.obj`/`.mtl` + `_albedo.png` + `_noise.png` exporter.
+
+            - **Icon-First Material Extended UI**: Streamlined icon-first controls across Scanner, 3D Studio, Batch Pipeline, and Settings.
+            - **Redesigned App Logo & Launch Screen**: Isometric voxel-to-quad emblem, adaptive launcher icon, and animated 3D studio launch screen.
+            - **Photogrammetry & Export Engine**: CameraX capture and analysis, IMU pose tracking, and FBX, OBJ, and STL export support.
 
             ### Installation
             Download and install `VoxelScan-3D-v1.2.apk` on your Android device.
